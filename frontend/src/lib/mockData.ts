@@ -1,7 +1,6 @@
-// ============================
-// Mock Data & Simulated API
-// No backend needed — all data is local
-// ============================
+// =========================================================================
+// StudyGround Mock Engine: BKT, Spaced Repetition (SM-2), Multimodal Data
+// =========================================================================
 
 import type {
   Question,
@@ -11,17 +10,89 @@ import type {
   QuizAttempt,
   DashboardData,
   SourceRef,
+  StudentProfile,
 } from "./types";
 
-// ── Topic Graph Data ──────────────────────────────────────────────
+// ── Realistic Demo Student Profile ───────────────────────────────────────
+export let currentProfile: StudentProfile = {
+  id: "student_alex_chen",
+  name: "Alex Chen",
+  handle: "@alexchen_cs",
+  role: "Computer Science Sophomore",
+  institution: "Stanford University • CS School",
+  targetExam: "CS106B Midterm: Data Structures & Algorithms",
+  examDate: "Nov 24, 2026 (in 18 days)",
+  level: 14,
+  currentXp: 3850,
+  nextLevelXp: 5000,
+  streakDays: 7,
+  totalHoursStudied: 19.4,
+  totalQuestionsAttempted: 142,
+  overallAccuracy: 88,
+  activeCourse: "CS101: Systems & Python Computation",
+  badges: [
+    {
+      id: "streak_7",
+      title: "Consistent Scholar",
+      description: "Maintained a 7-day continuous study streak",
+      iconName: "Flame",
+      unlockedAt: "Yesterday",
+      rarity: "rare",
+    },
+    {
+      id: "recursion_slayer",
+      title: "Algorithmic Precision",
+      description: "Scored 100% on Functions & Closures on first attempt",
+      iconName: "Zap",
+      unlockedAt: "3 days ago",
+      rarity: "epic",
+    },
+    {
+      id: "grounded_scholar",
+      title: "Source Verifier",
+      description: "Inspected 25+ direct video and textbook source citations",
+      iconName: "Award",
+      unlockedAt: "Oct 12, 2026",
+      rarity: "common",
+    },
+  ],
+  upcomingReviews: [
+    {
+      topicId: "variables",
+      topicTitle: "Variables & Numeric Types",
+      dueIn: "Today (High Priority)",
+      retentionEstimate: 76,
+      intervalDays: 4,
+      easeFactor: 2.5,
+    },
+    {
+      topicId: "control_flow",
+      topicTitle: "Control Flow & Iteration",
+      dueIn: "Tomorrow",
+      retentionEstimate: 83,
+      intervalDays: 7,
+      easeFactor: 2.6,
+    },
+    {
+      topicId: "data_structures",
+      topicTitle: "Lists, Sets & Hash Tables",
+      dueIn: "In 3 days",
+      retentionEstimate: 91,
+      intervalDays: 12,
+      easeFactor: 2.7,
+    },
+  ],
+};
+
+// ── Topic Graph Data with Concept Estimates ──────────────────────────────
 const TOPIC_NODES: Omit<TopicNode, "state" | "mastery">[] = [
-  { id: "variables", title: "Variables & Data Types", chapter: 1, tier: 1, unlock_threshold: 0.7 },
-  { id: "control_flow", title: "Control Flow", chapter: 2, tier: 2, unlock_threshold: 0.7 },
-  { id: "data_structures", title: "Data Structures", chapter: 3, tier: 2, unlock_threshold: 0.7 },
-  { id: "functions", title: "Functions", chapter: 4, tier: 3, unlock_threshold: 0.75 },
-  { id: "oop", title: "Object-Oriented Programming", chapter: 5, tier: 4, unlock_threshold: 0.75 },
-  { id: "error_handling", title: "Error Handling", chapter: 6, tier: 3, unlock_threshold: 0.7 },
-  { id: "file_io", title: "File I/O", chapter: 7, tier: 3, unlock_threshold: 0.7 },
+  { id: "variables", title: "Variables & Data Types", chapter: 1, tier: 1, unlock_threshold: 0.7, estimatedMinutes: 45, conceptCount: 8 },
+  { id: "control_flow", title: "Control Flow & Loops", chapter: 2, tier: 2, unlock_threshold: 0.7, estimatedMinutes: 60, conceptCount: 11 },
+  { id: "data_structures", title: "Data Structures & Slicing", chapter: 3, tier: 2, unlock_threshold: 0.7, estimatedMinutes: 90, conceptCount: 14 },
+  { id: "functions", title: "Functions & Closures", chapter: 4, tier: 3, unlock_threshold: 0.75, estimatedMinutes: 75, conceptCount: 10 },
+  { id: "oop", title: "Object-Oriented Programming", chapter: 5, tier: 4, unlock_threshold: 0.75, estimatedMinutes: 120, conceptCount: 16 },
+  { id: "error_handling", title: "Error & Exception Handling", chapter: 6, tier: 3, unlock_threshold: 0.7, estimatedMinutes: 40, conceptCount: 6 },
+  { id: "file_io", title: "File I/O & Serialization", chapter: 7, tier: 3, unlock_threshold: 0.7, estimatedMinutes: 50, conceptCount: 9 },
 ];
 
 const TOPIC_EDGES: TopicEdge[] = [
@@ -35,37 +106,59 @@ const TOPIC_EDGES: TopicEdge[] = [
   { from: "data_structures", to: "file_io" },
 ];
 
-// ── Mastery State (in-memory, persisted via closure) ──────────────
+// Initial seeded mastery scores for a realistic mid-progress demo student
 let masteryScores: Record<string, number> = {
-  variables: 0.0,
-  control_flow: 0.0,
-  data_structures: 0.0,
-  functions: 0.0,
-  oop: 0.0,
-  error_handling: 0.0,
-  file_io: 0.0,
+  variables: 0.85,     // Mastered
+  control_flow: 0.74,  // Mastered
+  data_structures: 0.45,// Ready (Active focus)
+  functions: 0.20,     // Ready (Frontier)
+  oop: 0.05,           // Locked
+  error_handling: 0.10,// Locked
+  file_io: 0.0,        // Locked
 };
 
-let quizHistory: QuizAttempt[] = [];
+let quizHistory: QuizAttempt[] = [
+  {
+    id: "quiz_hist_01",
+    topic: "Variables & Data Types",
+    score: 3,
+    total: 3,
+    date: new Date(Date.now() - 3600000 * 26),
+    difficulty: "medium",
+    xpEarned: 150,
+  },
+  {
+    id: "quiz_hist_02",
+    topic: "Control Flow & Loops",
+    score: 3,
+    total: 4,
+    date: new Date(Date.now() - 3600000 * 52),
+    difficulty: "medium",
+    xpEarned: 120,
+  },
+  {
+    id: "quiz_hist_03",
+    topic: "Data Structures & Slicing",
+    score: 2,
+    total: 3,
+    date: new Date(Date.now() - 3600000 * 120),
+    difficulty: "hard",
+    xpEarned: 80,
+  },
+];
 
-// ── BKT (Bayesian Knowledge Tracing) ──────────────────────────────
-function updateBKT(
-  pL: number,
-  isCorrect: boolean,
-  pG = 0.25,
-  pS = 0.10,
-  pT = 0.20
-): number {
+// ── BKT (Bayesian Knowledge Tracing) ──────────────────────────────────────
+function updateBKT(pL: number, isCorrect: boolean, pG = 0.25, pS = 0.10, pT = 0.20): number {
   let pLGiven: number;
   if (isCorrect) {
     pLGiven = (pL * (1 - pS)) / (pL * (1 - pS) + (1 - pL) * pG);
   } else {
     pLGiven = (pL * pS) / (pL * pS + (1 - pL) * (1 - pG));
   }
-  return Math.round((pLGiven + (1 - pLGiven) * pT) * 10000) / 10000;
+  return Math.min(1.0, Math.round((pLGiven + (1 - pLGiven) * pT) * 10000) / 10000);
 }
 
-// ── Topic State Calculator ────────────────────────────────────────
+// ── Topic State Calculator ────────────────────────────────────────────────
 function getTopicState(topicId: string): "LOCKED" | "READY" | "MASTERED" {
   const node = TOPIC_NODES.find((n) => n.id === topicId)!;
   const score = masteryScores[topicId] ?? 0;
@@ -79,483 +172,396 @@ function getTopicState(topicId: string): "LOCKED" | "READY" | "MASTERED" {
   return "READY";
 }
 
-// ── Mock Chat Responses ───────────────────────────────────────────
+// ── Multimodal Chat Responses (with Video Timestamps & Slide indices) ─────
 const CHAT_RESPONSES: Record<string, { answer: string; sources: SourceRef[] }> = {
   variable: {
-    answer: `A **variable** in Python is a named reference to a value stored in memory. Unlike languages such as Java or C++, Python uses **dynamic typing** — you do not need to declare a variable's type before assigning a value.
+    answer: `In Python, a **variable** is a dynamic reference bound to an object in memory. Because Python is dynamically typed, the type is bound to the *value* rather than the variable name itself.
 
 \`\`\`python
-name = "Alice"      # str
-age = 25            # int
-height = 5.6        # float
-is_student = True   # bool
+student_id = "S2026_09"  # str allocated in heap
+gpa = 3.85               # float
+semester = 4             # int
+enrolled = True          # bool
 \`\`\`
 
-Python supports three numeric types: **int** (whole numbers), **float** (decimal numbers), and **complex** (complex numbers like \`3+4j\`). [Source: Chapter 1, Section 1.1-1.2]
+Python's numeric hierarchy includes \`int\` (arbitrary precision in Python 3), \`float\` (double-precision IEEE 754), and \`complex\` (\`z = 3 + 4j\`).
 
-You can convert between types using built-in functions like \`int()\`, \`float()\`, \`str()\`, and \`bool()\`. [Source: Chapter 1, Section 1.4]`,
+During **Lecture 01 @ 12:45**, Prof. Roberts emphasized that integer division \`//\` floors the quotient toward negative infinity (\`-7 // 2 == -4\`), a frequent midterm trap!
+
+You can inspect the underlying memory identifier using \`id(variable)\` and verify type safety with \`isinstance(val, int)\`.`,
     sources: [
-      { label: "Chapter 1, Section 1.1: What are Variables?", source_type: "textbook", content_preview: "A variable in Python is a named reference to a value stored in memory. Unlike languages such as Java or C++, Python uses dynamic typing..." },
-      { label: "Chapter 1, Section 1.2: Numeric Types", source_type: "textbook", content_preview: "Python supports three numeric types: int (whole numbers like 42, -7, 0), float (decimal numbers like 3.14), and complex..." },
-      { label: "Chapter 1, Section 1.4: Type Conversion", source_type: "textbook", content_preview: "Use built-in functions to convert between types: int('42'), float('3.14'), str(100), bool(0)..." },
+      {
+        label: "Lecture 01: Memory Allocation & Typing",
+        source_type: "lecture_video",
+        media_type: "video",
+        timestamp: "12:45 - 15:20",
+        confidence: 0.98,
+        content_preview: "Prof. Roberts: 'Remember, variables in Python do not have types; values have types. When you say x = 5, x is a reference pointer to an integer object.'",
+      },
+      {
+        label: "Textbook Chapter 1: Foundations",
+        source_type: "pdf_textbook",
+        media_type: "pdf",
+        page_number: 14,
+        confidence: 0.95,
+        content_preview: "Section 1.2 Numeric Types: Python automatically promotes integers to arbitrary precision, avoiding classic 32-bit overflow vulnerabilities.",
+      },
+      {
+        label: "Slide Deck 01: Core Semantics",
+        source_type: "slide_deck",
+        media_type: "slide",
+        slide_number: 8,
+        confidence: 0.92,
+        content_preview: "Slide 8 Diagram: Variable reference graph showing pointer reassignment vs in-place mutation.",
+      },
     ],
   },
   loop: {
-    answer: `Python supports two types of loops: **for loops** and **while loops**.
+    answer: `Python provides sequence iteration via **for loops** (iterating over iterables using the iterator protocol \`__iter__()\` / \`__next__()\`) and condition-driven **while loops**.
 
-**For loops** iterate over sequences (lists, strings, ranges):
 \`\`\`python
-for fruit in ["apple", "banana", "cherry"]:
-    print(fruit)
+# Vectorized range iteration (O(1) memory)
+for step in range(0, 10, 2):
+    print(f"Step index: {step}")
 
-# range(start, stop, step)
-for i in range(0, 10, 2):
-    print(i)  # 0, 2, 4, 6, 8
+# While loop with defensive guard
+retries = 3
+while retries > 0:
+    if attempt_connection():
+        break
+    retries -= 1
+else:
+    # Executes ONLY if loop finishes WITHOUT encountering a break
+    alert_admin("Connection exhausted")
 \`\`\`
 
-**While loops** repeat as long as a condition is true:
-\`\`\`python
-count = 0
-while count < 5:
-    print(count)
-    count += 1
-\`\`\`
-
-You can use \`break\` to exit a loop early, \`continue\` to skip to the next iteration, and an \`else\` clause that executes when the loop finishes without \`break\`. [Source: Chapter 2, Section 2.3]`,
+**Key Concept Grounding:**
+As highlighted on **Slide 19 of Deck 2**, the \`else\` clause on loops acts as a completion assertion: it runs when the loop terminates naturally, not via an early \`break\`.`,
     sources: [
-      { label: "Chapter 2, Section 2.3: Loops", source_type: "textbook", content_preview: "For loops iterate over sequences (lists, strings, ranges, etc.). While loops repeat as long as a condition is true..." },
-      { label: "Chapter 2, Section 2.3: Break, Continue, and Else", source_type: "textbook", content_preview: "break — exit the loop immediately. continue — skip to the next iteration. else on a loop — executes when the loop finishes without break." },
+      {
+        label: "Slide Deck 02: Control Structures",
+        source_type: "slide_deck",
+        media_type: "slide",
+        slide_number: 19,
+        confidence: 0.96,
+        content_preview: "Slide 19: The 'else' clause pattern for search loops. Demonstrates how to avoid flag variables like found = False.",
+      },
+      {
+        label: "Lecture 02: Iteration & Protocols",
+        source_type: "lecture_video",
+        media_type: "video",
+        timestamp: "24:10 - 28:05",
+        confidence: 0.94,
+        content_preview: "Timestamp 24:10: Breakdown of how 'for x in iterable' calls iter() behind the scenes and catches StopIteration.",
+      },
     ],
   },
   list: {
-    answer: `**Lists** are ordered, mutable collections that can hold mixed types. They are one of Python's most versatile data structures.
+    answer: `**Lists** are dynamic arrays stored as contiguous arrays of pointers, offering $O(1)$ amortized append and $O(k)$ slicing.
 
 \`\`\`python
-numbers = [1, 2, 3, 4, 5]
-numbers.append(6)          # Add to end
-numbers.insert(0, 0)       # Insert at index
-numbers.pop()              # Remove last
-numbers.sort(reverse=True) # Sort descending
+# Comprehensive slicing: [start:stop:step]
+raw_telemetry = [10.2, 11.5, 9.8, 14.1, 15.0, 12.2]
+reversed_view = raw_telemetry[::-1]       # Reverses sequence
+downsampled = raw_telemetry[::2]          # Every 2nd sample
+
+# List Comprehension with condition
+valid_pings = [x * 100 for x in raw_telemetry if x > 10.0]
 \`\`\`
 
-**List comprehensions** provide a concise way to create lists:
-\`\`\`python
-squares = [x**2 for x in range(10)]           # [0, 1, 4, 9, ..., 81]
-evens = [x for x in range(20) if x % 2 == 0]  # [0, 2, 4, ..., 18]
-\`\`\`
-
-**Slicing** uses \`list[start:stop:step]\` syntax:
-\`\`\`python
-nums = [0, 1, 2, 3, 4, 5]
-nums[1:4]     # [1, 2, 3]
-nums[::-1]    # [5, 4, 3, 2, 1, 0] — reversed
-\`\`\`
-[Source: Chapter 3, Section 3.1]`,
+**Midterm Alert (Textbook p. 32):** Slicing creates a *shallow copy* of the list container. Modifying nested mutable objects inside a slice will still mutate the original elements!`,
     sources: [
-      { label: "Chapter 3, Section 3.1: Lists", source_type: "textbook", content_preview: "Lists are ordered, mutable collections. They can hold mixed types. Key methods: append(), insert(), pop(), remove(), sort()..." },
+      {
+        label: "Textbook Chapter 3: Sequences",
+        source_type: "pdf_textbook",
+        media_type: "pdf",
+        page_number: 32,
+        confidence: 0.99,
+        content_preview: "Section 3.1: Python list allocation mechanics, dynamic over-allocation factor, and memory pointer implications during shallow slicing.",
+      },
+      {
+        label: "Lecture 03: Vector Operations",
+        source_type: "lecture_video",
+        media_type: "video",
+        timestamp: "18:22 - 21:40",
+        confidence: 0.91,
+        content_preview: "Prof. Roberts whiteboard walkthrough of pointer indirection and why list.append is amortized O(1) while list.insert(0, v) is O(n).",
+      },
     ],
   },
   function: {
-    answer: `**Functions** in Python are defined with the \`def\` keyword and support default arguments, keyword arguments, and variable-length arguments.
+    answer: `Functions in Python are **first-class citizens** — they can be passed as arguments, assigned to variables, and returned from other functions.
 
 \`\`\`python
-def greet(name, greeting="Hello"):
-    """Return a personalized greeting string."""
-    return f"{greeting}, {name}!"
+def memoize(func):
+    cache = {}
+    def wrapper(*args, **kwargs):
+        key = (args, tuple(sorted(kwargs.items())))
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+    return wrapper
+
+@memoize
+def fibonacci(n: int) -> int:
+    return n if n <= 1 else fibonacci(n - 1) + fibonacci(n - 2)
 \`\`\`
 
-**\`*args\` and \`**kwargs\`** allow flexible argument passing:
-- \`*args\` collects extra positional arguments into a tuple
-- \`**kwargs\` collects extra keyword arguments into a dictionary
-[Source: Chapter 4, Section 4.2]
+**Scope Resolution (LEGB):**
+1. **L**ocal (within function body)
+2. **E**nclosing (outer function closures via \`nonlocal\`)
+3. **G**lobal (module level via \`global\`)
+4. **B**uilt-in (\`len\`, \`range\`, \`Exception\`)
 
-**Lambda functions** are anonymous single-expression functions:
-\`\`\`python
-square = lambda x: x ** 2
-\`\`\`
-
-Python follows the **LEGB rule** for variable scope: Local → Enclosing → Global → Built-in. [Source: Chapter 4, Section 4.4]`,
+Citing **Lecture 04 @ 34:10**, closures retain references to enclosing scope variables even after the outer function has returned.`,
     sources: [
-      { label: "Chapter 4, Section 4.1: Defining Functions", source_type: "textbook", content_preview: "Functions are defined with the def keyword. They support default arguments, keyword arguments, and variable-length arguments." },
-      { label: "Chapter 4, Section 4.2: *args and **kwargs", source_type: "textbook", content_preview: "*args collects positional arguments into a tuple. **kwargs collects keyword arguments into a dictionary." },
-      { label: "Chapter 4, Section 4.4: Scope and Closures", source_type: "textbook", content_preview: "Python follows the LEGB rule for variable scope: Local → Enclosing → Global → Built-in." },
+      {
+        label: "Lecture 04: Closures & Decorators",
+        source_type: "lecture_video",
+        media_type: "video",
+        timestamp: "34:10 - 39:50",
+        confidence: 0.97,
+        content_preview: "Step-by-step breakdown of how decorator syntactic sugar '@decorator' desugars to 'func = decorator(func)'.",
+      },
+      {
+        label: "Textbook Chapter 4: Functional Python",
+        source_type: "pdf_textbook",
+        media_type: "pdf",
+        page_number: 58,
+        confidence: 0.93,
+        content_preview: "Section 4.4 LEGB Scope Hierarchy: Common pitfalls with late binding in closures inside list comprehensions.",
+      },
     ],
   },
   class: {
-    answer: `**Classes** in Python define blueprints for objects. The \`__init__\` method initializes instance attributes.
+    answer: `Object-Oriented Programming in Python uses classes as extensible blueprints. Python supports multiple inheritance resolved through the **C3 Method Resolution Order (MRO)** algorithm.
 
 \`\`\`python
-class Student:
-    def __init__(self, name, student_id, gpa=0.0):
-        self.name = name
-        self.student_id = student_id
-        self.gpa = gpa
-        self.courses = []
+class BaseTelemetry:
+    def __init__(self, device_id: str):
+        self.device_id = device_id
+        self._calibrated = False # Protected convention
 
-    def enroll(self, course):
-        self.courses.append(course)
-        return f"{self.name} enrolled in {course}"
+    def calibrate(self):
+        self._calibrated = True
+
+class SensorNode(BaseTelemetry):
+    def __init__(self, device_id: str, sampling_rate_hz: int):
+        super().__init__(device_id)
+        self.sampling_rate_hz = sampling_rate_hz
 \`\`\`
 
-**Inheritance** allows child classes to extend parent classes:
-\`\`\`python
-class GradStudent(Student):
-    def __init__(self, name, student_id, gpa, thesis_topic):
-        super().__init__(name, student_id, gpa)
-        self.thesis_topic = thesis_topic
-\`\`\`
-
-**Polymorphism** lets different classes implement the same method interface. [Source: Chapter 5, Section 5.4]`,
+**Key Takeaway (Deck 5, Slide 14):** Always invoke \`super().__init__()\` rather than explicit base class names to ensure cooperative multiple inheritance remains intact.`,
     sources: [
-      { label: "Chapter 5, Section 5.1: Classes and Objects", source_type: "textbook", content_preview: "A class defines a blueprint for objects. The __init__ method initializes instance attributes." },
-      { label: "Chapter 5, Section 5.2: Inheritance", source_type: "textbook", content_preview: "A child class inherits attributes and methods from a parent class using super().__init__()." },
+      {
+        label: "Slide Deck 05: Class Architectures",
+        source_type: "slide_deck",
+        media_type: "slide",
+        slide_number: 14,
+        confidence: 0.95,
+        content_preview: "Slide 14: Method Resolution Order (MRO) visualization and why super() is required for diamond inheritance patterns.",
+      },
     ],
-  },
-  dictionary: {
-    answer: `**Dictionaries** store key-value pairs with O(1) average lookup time. They are one of Python's most important data structures.
-
-\`\`\`python
-student = {
-    "name": "Alice",
-    "age": 20,
-    "courses": ["CS101", "MATH201"]
-}
-student["gpa"] = 3.8          # Add new key
-name = student.get("name")    # Safe access (returns None if missing)
-student.pop("age")            # Remove key
-\`\`\`
-
-Iterate over dictionaries:
-\`\`\`python
-for key, value in student.items():
-    print(f"{key}: {value}")
-\`\`\`
-
-**Dictionary comprehensions**:
-\`\`\`python
-word_lengths = {word: len(word) for word in ["hello", "world", "python"]}
-# {'hello': 5, 'world': 5, 'python': 6}
-\`\`\`
-[Source: Chapter 3, Section 3.2]`,
-    sources: [
-      { label: "Chapter 3, Section 3.2: Dictionaries", source_type: "textbook", content_preview: "Dictionaries store key-value pairs with O(1) average lookup time. Use .get() for safe access, .items() for iteration." },
-    ],
-  },
-  default: {
-    answer: `I can help you with topics covered in your **Introduction to Python Programming** course materials. Based on the uploaded content, I can answer questions about:
-
-📖 **Chapter 1** — Variables & Data Types
-📖 **Chapter 2** — Control Flow (if/else, loops)
-📖 **Chapter 3** — Data Structures (lists, dicts, tuples, sets)
-📖 **Chapter 4** — Functions (args, kwargs, lambdas, decorators)
-📖 **Chapter 5** — Object-Oriented Programming
-📖 **Chapter 6** — Error Handling
-📖 **Chapter 7** — File I/O
-
-Try asking something like *"Explain list comprehensions"* or *"How do decorators work?"*`,
-    sources: [],
   },
   out_of_scope: {
-    answer: `⚠️ **This topic isn't covered in your uploaded materials.**
+    answer: `🛡️ **Source-Grounding Guardrail Activated: Query Out-of-Scope**
 
-Your current course materials cover Python fundamentals (Chapters 1-7). The topic you asked about appears to be outside the scope of these materials.
+The question you asked pertains to topics **not covered in your uploaded syllabus**:
+*Active Curriculum: CS101 Systems & Python Computation (Chapters 1–7)*
 
-I can only provide answers grounded in your uploaded course content to ensure accuracy. Would you like to ask about one of the covered topics instead?`,
+**Why was this blocked?**
+StudyGround adheres to **Strict Source Grounding (Track D Spec)** to prevent AI hallucinations and keep you focused on your actual exam material.
+
+**Covered Topics Ready for Revision:**
+1. Chapter 1: Variables, Numeric Types & Floating-Point Bounds
+2. Chapter 2: Control Flow, Iteration & Loop Invariants
+3. Chapter 3: Sequences, Slicing & Hash Maps
+4. Chapter 4: Functions, Closures & First-Class Decorators
+5. Chapter 5: OOP, Inheritance & Polymorphism`,
+    sources: [],
+  },
+  default: {
+    answer: `I am your source-grounded study companion for **CS101: Systems & Python Computation**.
+
+I synthesize concepts across your uploaded lecture videos, slide decks, and course textbook. Every explanation includes exact timestamps and page references.
+
+**Suggested study prompts based on your frontier:**
+- *"Explain the difference between mutable and immutable types in Python"*
+- *"How does list comprehension memory allocation compare to standard loops?"*
+- *"Walk me through the LEGB variable scope hierarchy with an example"*
+- *"Why does the 'else' block execute on a for loop?"*`,
     sources: [],
   },
 };
 
 function findChatResponse(query: string): { answer: string; sources: SourceRef[] } {
   const q = query.toLowerCase();
-  // Out-of-scope keywords
-  const outOfScope = ["machine learning", "neural network", "database", "sql", "react", "javascript", "web", "api", "django", "flask", "quantum", "blockchain"];
+  const outOfScope = ["quantum", "blockchain", "react", "css", "docker", "kubernetes", "c++", "rust", "neuroscience", "stock market"];
   if (outOfScope.some((kw) => q.includes(kw))) return CHAT_RESPONSES.out_of_scope;
 
-  if (q.includes("variable") || q.includes("data type") || q.includes("int") || q.includes("string") || q.includes("float")) return CHAT_RESPONSES.variable;
-  if (q.includes("loop") || q.includes("for") || q.includes("while") || q.includes("iteration")) return CHAT_RESPONSES.loop;
-  if (q.includes("list") || q.includes("comprehension") || q.includes("slice") || q.includes("slicing")) return CHAT_RESPONSES.list;
-  if (q.includes("function") || q.includes("def ") || q.includes("lambda") || q.includes("decorator") || q.includes("args") || q.includes("scope")) return CHAT_RESPONSES.function;
-  if (q.includes("class") || q.includes("object") || q.includes("oop") || q.includes("inherit") || q.includes("polymorphism")) return CHAT_RESPONSES.class;
-  if (q.includes("dict") || q.includes("dictionary") || q.includes("key-value") || q.includes("hash")) return CHAT_RESPONSES.dictionary;
+  if (q.includes("variable") || q.includes("type") || q.includes("float") || q.includes("int") || q.includes("memory")) return CHAT_RESPONSES.variable;
+  if (q.includes("loop") || q.includes("for") || q.includes("while") || q.includes("break") || q.includes("continue")) return CHAT_RESPONSES.loop;
+  if (q.includes("list") || q.includes("slice") || q.includes("slicing") || q.includes("comprehension") || q.includes("array")) return CHAT_RESPONSES.list;
+  if (q.includes("function") || q.includes("closure") || q.includes("decorator") || q.includes("legb") || q.includes("scope") || q.includes("lambda")) return CHAT_RESPONSES.function;
+  if (q.includes("class") || q.includes("object") || q.includes("oop") || q.includes("mro") || q.includes("super")) return CHAT_RESPONSES.class;
 
   return CHAT_RESPONSES.default;
 }
 
-// ── Mock Quiz Questions Pool ──────────────────────────────────────
+// ── Realistic Quiz Questions with Taxonomy & XP ──────────────────────────
 const QUIZ_POOL: Record<string, Question[]> = {
   variables: [
     {
       question_type: "MCQ",
-      prompt: "What will be the output of: type(3.14)?",
-      difficulty: "easy",
-      source_label: "Chapter 1, Section 1.2",
-      options: [
-        { id: "A", text: "<class 'int'>", is_correct: false },
-        { id: "B", text: "<class 'float'>", is_correct: true },
-        { id: "C", text: "<class 'str'>", is_correct: false },
-        { id: "D", text: "<class 'decimal'>", is_correct: false },
-      ],
-      correct_answer: "B",
-      explanation: "3.14 is a decimal number, so Python classifies it as a float type. Python supports int, float, and complex as numeric types.",
-    },
-    {
-      question_type: "MCQ",
-      prompt: "Which of the following is the correct way to create an f-string in Python?",
-      difficulty: "easy",
-      source_label: "Chapter 1, Section 1.3",
-      options: [
-        { id: "A", text: 'f"Hello, {name}!"', is_correct: true },
-        { id: "B", text: '"Hello, ${name}!"', is_correct: false },
-        { id: "C", text: '"Hello, " + name + "!"', is_correct: false },
-        { id: "D", text: 'format("Hello, {}", name)', is_correct: false },
-      ],
-      correct_answer: "A",
-      explanation: "f-strings (formatted string literals) use the f prefix and curly braces {} to embed expressions directly in strings. This is the recommended way in modern Python.",
-    },
-    {
-      question_type: "SHORT_ANSWER",
-      prompt: "What does the expression bool(0) evaluate to in Python?",
-      difficulty: "easy",
-      source_label: "Chapter 1, Section 1.4",
-      correct_answer: "False",
-      explanation: "In Python, 0 is a falsy value. bool(0) converts the integer 0 to its boolean equivalent, which is False. Other falsy values include empty strings, None, and empty collections.",
-    },
-    {
-      question_type: "MCQ",
-      prompt: "What is the result of 17 // 5 in Python?",
+      prompt: "In Python 3, what is the exact output of: -7 // 2 ?",
       difficulty: "medium",
-      source_label: "Chapter 1, Section 1.2",
+      source_label: "Lecture 01 @ 14:10 / Textbook p.15",
+      media_type: "video",
+      timestamp: "14:10",
+      cognitive_level: "Analysis",
+      xp_reward: 45,
       options: [
-        { id: "A", text: "3.4", is_correct: false },
-        { id: "B", text: "3", is_correct: true },
-        { id: "C", text: "4", is_correct: false },
-        { id: "D", text: "2", is_correct: false },
-      ],
-      correct_answer: "B",
-      explanation: "The // operator performs floor division, which divides and rounds down to the nearest integer. 17 / 5 = 3.4, and floor(3.4) = 3.",
-    },
-  ],
-  control_flow: [
-    {
-      question_type: "MCQ",
-      prompt: "What keyword is used to skip the current iteration in a loop?",
-      difficulty: "easy",
-      source_label: "Chapter 2, Section 2.3",
-      options: [
-        { id: "A", text: "break", is_correct: false },
-        { id: "B", text: "skip", is_correct: false },
-        { id: "C", text: "continue", is_correct: true },
-        { id: "D", text: "pass", is_correct: false },
+        { id: "A", text: "-3.5", is_correct: false },
+        { id: "B", text: "-3", is_correct: false },
+        { id: "C", text: "-4", is_correct: true },
+        { id: "D", text: "Raises ZeroDivisionError", is_correct: false },
       ],
       correct_answer: "C",
-      explanation: "'continue' skips the rest of the current iteration and moves to the next one. 'break' exits the loop entirely. 'pass' is a no-op placeholder.",
-    },
-    {
-      question_type: "SHORT_ANSWER",
-      prompt: "What values does range(0, 10, 2) generate?",
-      difficulty: "medium",
-      source_label: "Chapter 2, Section 2.3",
-      correct_answer: "0, 2, 4, 6, 8",
-      explanation: "range(start, stop, step) generates numbers from start up to (but not including) stop, incrementing by step. So range(0, 10, 2) gives 0, 2, 4, 6, 8.",
+      explanation: "Floor division (//) rounds toward negative infinity. -7 / 2 = -3.5, and the largest integer less than or equal to -3.5 is -4. This is a common exam pitfall!",
     },
     {
       question_type: "MCQ",
-      prompt: "When does the 'else' clause of a for loop execute?",
-      difficulty: "hard",
-      source_label: "Chapter 2, Section 2.3",
+      prompt: "Which statement accurately describes Python's object model for primitive integers?",
+      difficulty: "easy",
+      source_label: "Slide Deck 01, Slide 12",
+      media_type: "slide",
+      cognitive_level: "Recall",
+      xp_reward: 30,
       options: [
-        { id: "A", text: "When the loop condition becomes False", is_correct: false },
-        { id: "B", text: "When the loop finishes without hitting a 'break'", is_correct: true },
-        { id: "C", text: "When an exception occurs in the loop", is_correct: false },
-        { id: "D", text: "It always executes after the loop", is_correct: false },
+        { id: "A", text: "Integers are stored directly in register stacks as primitive 32-bit values", is_correct: false },
+        { id: "B", text: "Variables hold reference pointers to immutable heap-allocated integer objects", is_correct: true },
+        { id: "C", text: "Integers automatically mutate in-place when re-assigned", is_correct: false },
+        { id: "D", text: "Variables must declare signedness before allocation", is_correct: false },
       ],
       correct_answer: "B",
-      explanation: "The else clause on a loop executes only when the loop completes normally — that is, without encountering a break statement.",
+      explanation: "In Python, all integers are immutable heap-allocated objects. Variable names merely hold pointers referencing those memory locations.",
+    },
+    {
+      question_type: "SHORT_ANSWER",
+      prompt: "What built-in function returns the unique integer memory identity of a Python object?",
+      difficulty: "easy",
+      source_label: "Textbook Chapter 1, Section 1.3",
+      media_type: "pdf",
+      cognitive_level: "Recall",
+      xp_reward: 25,
+      correct_answer: "id()",
+      explanation: "The id() function returns the identity of an object as an integer, which corresponds to the object's actual memory address in CPython.",
     },
   ],
   data_structures: [
     {
       question_type: "MCQ",
-      prompt: "What does nums[::-1] do for a list nums = [1, 2, 3, 4, 5]?",
-      difficulty: "medium",
-      source_label: "Chapter 3, Section 3.1",
+      prompt: "Given lst = [1, 2, [3, 4]], what happens if we execute copy_lst = lst[:] followed by copy_lst[2].append(5)?",
+      difficulty: "hard",
+      source_label: "Lecture 03 @ 22:15 / Textbook p.34",
+      media_type: "video",
+      timestamp: "22:15",
+      cognitive_level: "Analysis",
+      xp_reward: 60,
       options: [
-        { id: "A", text: "Returns [1, 2, 3, 4]", is_correct: false },
-        { id: "B", text: "Returns [5, 4, 3, 2, 1]", is_correct: true },
-        { id: "C", text: "Returns [2, 3, 4, 5]", is_correct: false },
-        { id: "D", text: "Raises an error", is_correct: false },
+        { id: "A", text: "lst remains [1, 2, [3, 4]] because lst[:] creates a deep copy", is_correct: false },
+        { id: "B", text: "lst becomes [1, 2, [3, 4, 5]] because slicing only produces a shallow copy", is_correct: true },
+        { id: "C", text: "Raises an AttributeError because sliced lists are immutable", is_correct: false },
+        { id: "D", text: "Raises a MemoryError", is_correct: false },
       ],
       correct_answer: "B",
-      explanation: "The slice [::-1] reverses the list. The -1 step means iterate backwards through the entire list.",
+      explanation: "Slicing lst[:] creates a shallow copy: the outer list container is duplicated, but internal references to nested mutable objects (like the inner list) are shared.",
     },
     {
       question_type: "SHORT_ANSWER",
-      prompt: "What is the average time complexity of dictionary lookup in Python?",
+      prompt: "What is the amortized average time complexity of appending an element to a Python list using .append()?",
       difficulty: "medium",
-      source_label: "Chapter 3, Section 3.2",
+      source_label: "Slide Deck 03, Slide 8",
+      media_type: "slide",
+      cognitive_level: "Recall",
+      xp_reward: 35,
       correct_answer: "O(1)",
-      explanation: "Dictionaries in Python are implemented as hash tables, providing O(1) average-case time complexity for lookups, insertions, and deletions.",
-    },
-    {
-      question_type: "MCQ",
-      prompt: "Which data structure would you use if you need unique elements only?",
-      difficulty: "easy",
-      source_label: "Chapter 3, Section 3.4",
-      options: [
-        { id: "A", text: "List", is_correct: false },
-        { id: "B", text: "Tuple", is_correct: false },
-        { id: "C", text: "Set", is_correct: true },
-        { id: "D", text: "Dictionary", is_correct: false },
-      ],
-      correct_answer: "C",
-      explanation: "Sets are unordered collections of unique elements. Adding a duplicate element to a set has no effect.",
+      explanation: "Python lists use geometric over-allocation (approximately 1.125x resize factor). While occasional resizes take O(n), the amortized cost per append is O(1).",
     },
   ],
   functions: [
     {
       question_type: "MCQ",
-      prompt: "What does *args do in a function definition?",
+      prompt: "What does Python's LEGB rule govern during runtime execution?",
       difficulty: "medium",
-      source_label: "Chapter 4, Section 4.2",
+      source_label: "Textbook Chapter 4, p.62",
+      media_type: "pdf",
+      cognitive_level: "Application",
+      xp_reward: 40,
       options: [
-        { id: "A", text: "Collects keyword arguments into a dictionary", is_correct: false },
-        { id: "B", text: "Collects positional arguments into a tuple", is_correct: true },
-        { id: "C", text: "Makes arguments optional", is_correct: false },
-        { id: "D", text: "Unpacks a list into arguments", is_correct: false },
+        { id: "A", text: "The sequence order of exception handlers in try-except blocks", is_correct: false },
+        { id: "B", text: "The priority resolution for variable scope: Local -> Enclosing -> Global -> Built-in", is_correct: true },
+        { id: "C", text: "The garbage collection sweep order for circular references", is_correct: false },
+        { id: "D", text: "The byte-compilation order of imported package modules", is_correct: false },
       ],
       correct_answer: "B",
-      explanation: "*args collects any number of additional positional arguments into a tuple. **kwargs collects keyword arguments into a dictionary.",
-    },
-    {
-      question_type: "SHORT_ANSWER",
-      prompt: "What is the LEGB rule in Python?",
-      difficulty: "hard",
-      source_label: "Chapter 4, Section 4.4",
-      correct_answer: "Local, Enclosing, Global, Built-in",
-      explanation: "LEGB stands for Local → Enclosing → Global → Built-in. It defines the order Python searches for variable names when they are referenced.",
-    },
-  ],
-  oop: [
-    {
-      question_type: "MCQ",
-      prompt: "What method is called when a new instance of a class is created?",
-      difficulty: "easy",
-      source_label: "Chapter 5, Section 5.1",
-      options: [
-        { id: "A", text: "__new__", is_correct: false },
-        { id: "B", text: "__init__", is_correct: true },
-        { id: "C", text: "__create__", is_correct: false },
-        { id: "D", text: "__start__", is_correct: false },
-      ],
-      correct_answer: "B",
-      explanation: "__init__ is the initializer method called when a new instance is created. It sets up the instance's initial attributes.",
-    },
-    {
-      question_type: "MCQ",
-      prompt: "What function is used to call a parent class's method from a child class?",
-      difficulty: "medium",
-      source_label: "Chapter 5, Section 5.2",
-      options: [
-        { id: "A", text: "parent()", is_correct: false },
-        { id: "B", text: "base()", is_correct: false },
-        { id: "C", text: "super()", is_correct: true },
-        { id: "D", text: "this()", is_correct: false },
-      ],
-      correct_answer: "C",
-      explanation: "super() returns a proxy object that delegates method calls to the parent class, commonly used in __init__ to call the parent's constructor.",
-    },
-  ],
-  error_handling: [
-    {
-      question_type: "MCQ",
-      prompt: "Which block always executes regardless of whether an exception occurred?",
-      difficulty: "easy",
-      source_label: "Chapter 6, Section 6.1",
-      options: [
-        { id: "A", text: "try", is_correct: false },
-        { id: "B", text: "except", is_correct: false },
-        { id: "C", text: "else", is_correct: false },
-        { id: "D", text: "finally", is_correct: true },
-      ],
-      correct_answer: "D",
-      explanation: "The 'finally' block always executes, whether or not an exception was raised. It's typically used for cleanup operations like closing files.",
-    },
-    {
-      question_type: "SHORT_ANSWER",
-      prompt: "What keyword is used to manually trigger an exception in Python?",
-      difficulty: "easy",
-      source_label: "Chapter 6, Section 6.2",
-      correct_answer: "raise",
-      explanation: "The 'raise' keyword is used to manually trigger an exception. For example: raise ValueError('invalid input')",
-    },
-  ],
-  file_io: [
-    {
-      question_type: "MCQ",
-      prompt: "What is the recommended way to open a file in Python to ensure it's properly closed?",
-      difficulty: "easy",
-      source_label: "Chapter 7, Section 7.1",
-      options: [
-        { id: "A", text: "f = open('file.txt')", is_correct: false },
-        { id: "B", text: "with open('file.txt') as f:", is_correct: true },
-        { id: "C", text: "file.open('file.txt')", is_correct: false },
-        { id: "D", text: "open('file.txt').read()", is_correct: false },
-      ],
-      correct_answer: "B",
-      explanation: "The 'with' statement (context manager) automatically closes the file when the block exits, even if an exception occurs. This is the recommended pattern.",
-    },
-    {
-      question_type: "SHORT_ANSWER",
-      prompt: "What mode would you use with open() to append text to an existing file?",
-      difficulty: "easy",
-      source_label: "Chapter 7, Section 7.2",
-      correct_answer: "a",
-      explanation: "The 'a' mode opens a file for appending. 'w' overwrites, 'r' reads. Use 'a' when you want to add content to the end of an existing file.",
+      explanation: "LEGB defines Python's name-resolution hierarchy: Local scope first, followed by Enclosing function closures, then Global module attributes, and finally Built-ins.",
     },
   ],
 };
 
-// ── Simulated delay ───────────────────────────────────────────────
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// ── Public API ────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────
 
 let isIngested = false;
 
-export async function ingestSample(): Promise<{ status: string; chunks: number }> {
-  await delay(1500);
+export async function ingestSample(): Promise<{ status: string; chunks: number; sourcesIndexed: string[] }> {
+  await delay(1200);
   isIngested = true;
-  return { status: "ok", chunks: 42 };
+  // Award 150 XP for loading course material
+  currentProfile.currentXp += 150;
+  return {
+    status: "ok",
+    chunks: 42,
+    sourcesIndexed: [
+      "PDF Textbook: Systems & Python Computation (142 pgs)",
+      "Slide Deck: CS101 Lecture Modules (48 slides)",
+      "Video Transcripts: 6 Lectures (Whisper-diarized with timestamps)",
+    ],
+  };
 }
 
 export function isDataLoaded(): boolean {
   return isIngested;
 }
 
-export async function chat(query: string): Promise<{ answer: string; sources: SourceRef[] }> {
-  await delay(800 + Math.random() * 1200);
+export async function chat(query: string): Promise<{ answer: string; sources: SourceRef[]; modelConfidence: number }> {
+  await delay(700 + Math.random() * 800);
   const resp = findChatResponse(query);
-  return resp;
+  return {
+    ...resp,
+    modelConfidence: resp.sources.length > 0 ? 0.96 : 0.82,
+  };
 }
 
 export async function generateQuiz(
   topicId: string,
   numQuestions: number = 3,
-  _difficulty: string = "medium"
+  difficulty: string = "medium"
 ): Promise<QuizResponse> {
-  await delay(1000 + Math.random() * 1000);
+  await delay(900);
   const pool = QUIZ_POOL[topicId] || QUIZ_POOL.variables;
   const topicNode = TOPIC_NODES.find((n) => n.id === topicId);
 
-  // Shuffle and pick
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, Math.min(numQuestions, shuffled.length));
 
   return {
     topic: topicNode?.title || topicId,
-    difficulty: _difficulty,
+    difficulty,
     questions: selected,
   };
 }
@@ -566,7 +572,6 @@ export function gradeAnswer(question: Question, studentAnswer: string): { isCorr
     const isCorrect = studentAnswer.toUpperCase() === correct?.id;
     return { isCorrect, score: isCorrect ? 1 : 0 };
   } else {
-    // Short answer: simple keyword matching
     const canonical = (question.correct_answer || "").toLowerCase().trim();
     const student = studentAnswer.toLowerCase().trim();
     const isCorrect = student.includes(canonical) || canonical.includes(student);
@@ -574,13 +579,23 @@ export function gradeAnswer(question: Question, studentAnswer: string): { isCorr
   }
 }
 
-export function submitQuizResults(topicId: string, results: { isCorrect: boolean }[]): void {
-  // Update mastery via BKT
+export function submitQuizResults(
+  topicId: string,
+  results: { isCorrect: boolean; xp?: number }[]
+): { xpEarned: number; newMastery: number; streakUpdated: boolean } {
+  let earnedXp = 0;
   for (const r of results) {
     masteryScores[topicId] = updateBKT(masteryScores[topicId] ?? 0, r.isCorrect);
+    earnedXp += r.isCorrect ? 40 : 10;
   }
 
-  // Record history
+  currentProfile.currentXp += earnedXp;
+  currentProfile.totalQuestionsAttempted += results.length;
+  if (currentProfile.currentXp >= currentProfile.nextLevelXp) {
+    currentProfile.level += 1;
+    currentProfile.nextLevelXp += 2500;
+  }
+
   const correct = results.filter((r) => r.isCorrect).length;
   quizHistory.unshift({
     id: `quiz_${Date.now()}`,
@@ -588,12 +603,19 @@ export function submitQuizResults(topicId: string, results: { isCorrect: boolean
     score: correct,
     total: results.length,
     date: new Date(),
-    difficulty: "mixed",
+    difficulty: "adaptive",
+    xpEarned: earnedXp,
   });
+
+  return {
+    xpEarned: earnedXp,
+    newMastery: masteryScores[topicId],
+    streakUpdated: true,
+  };
 }
 
 export async function getDashboard(): Promise<DashboardData> {
-  await delay(300);
+  await delay(200);
 
   const topics: TopicNode[] = TOPIC_NODES.map((n) => ({
     ...n,
@@ -606,6 +628,7 @@ export async function getDashboard(): Promise<DashboardData> {
   const overallProgress = Math.round((mastered / topics.length) * 100);
 
   return {
+    profile: { ...currentProfile },
     mastery: { ...masteryScores },
     topics,
     edges: TOPIC_EDGES,
