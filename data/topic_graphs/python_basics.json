@@ -1,0 +1,23 @@
+{
+  "course_id": "python101",
+  "course_title": "Introduction to Python Programming",
+  "nodes": [
+    {"id": "variables", "title": "Variables & Data Types", "chapter": 1, "tier": 1, "unlock_threshold": 0.70},
+    {"id": "control_flow", "title": "Control Flow", "chapter": 2, "tier": 2, "unlock_threshold": 0.70},
+    {"id": "data_structures", "title": "Data Structures", "chapter": 3, "tier": 2, "unlock_threshold": 0.70},
+    {"id": "functions", "title": "Functions", "chapter": 4, "tier": 3, "unlock_threshold": 0.75},
+    {"id": "oop", "title": "Object-Oriented Programming", "chapter": 5, "tier": 4, "unlock_threshold": 0.75},
+    {"id": "error_handling", "title": "Error Handling", "chapter": 6, "tier": 3, "unlock_threshold": 0.70},
+    {"id": "file_io", "title": "File I/O", "chapter": 7, "tier": 3, "unlock_threshold": 0.70}
+  ],
+  "edges": [
+    {"from": "variables", "to": "control_flow"},
+    {"from": "variables", "to": "data_structures"},
+    {"from": "control_flow", "to": "functions"},
+    {"from": "data_structures", "to": "functions"},
+    {"from": "functions", "to": "oop"},
+    {"from": "control_flow", "to": "error_handling"},
+    {"from": "variables", "to": "file_io"},
+    {"from": "data_structures", "to": "file_io"}
+  ]
+}
